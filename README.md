@@ -46,3 +46,15 @@ o
 
 
 To start via slime: (asdf:load-system "cl-puyopuyo")
+
+
+This is a regular paragraph.
+
+<table>
+    <tr>
+        <td>Foo</td>
+    </tr>
+</table>
+
+This is another regular paragraph.
+
