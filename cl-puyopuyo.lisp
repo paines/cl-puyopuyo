@@ -1,5 +1,3 @@
-;;;; cl-puyopuyo.lisp
-
 (in-package #:cl-puyopuyo)
 
 ;;puyos are represented in an simple 6*12 array. with this it is easy to backtrack later neighboring puyos
@@ -43,7 +41,7 @@
 
 (defun drawPuyo (x y col)
   "draws a puyo at coordinates x,y. x,y are puyo field coordinates in the dimension of 6 width and 12 height puyos. due to the fact that we start counting from zero 5,11 is the max coordiante."
-  (format t "~%u drawPuyo called with x=~D and y=~D and col=~D" x y col)
+  (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
   (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
       (case col
 	(0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
@@ -59,10 +57,9 @@
 	    (setf (aref *field* (+ (* y 12) x)) -1))))
 
 (defun drawField ()
-  (loop for x from 0 to 11 do
-       (loop for y from 0 to 5 do
-	  ;;	  (format t "~% x=~D y=~D index=~D" x y (+ (* y 12) x))
-	    (drawPuyo x y (aref *field* (+ (* y 12) x))))))
+  (loop for x from 0 to 5 do
+       (loop for y from 0 to 11 do
+	    (drawPuyo x y (aref *field* (getOffset x y))))))
 
 
 
@@ -83,18 +80,20 @@
 	(setf *twoPosX* (+ *twoPosX* 1)))))
 
 (defun getOffset (x y)
-  (+ (* y 12) x))
+  (format t "~%getOffset:: x=~D y=~D offset=~D" x y (+ (* 6 y) x))
+  (+ (* y 6) x))
 
 
-					;(format t "~%dropPuyos: onePosY=~D twoPosY=~D arefOne=~D" *onePosY* *twoPosY* (aref *field* (getOffset *onePosX* (+ *onePosY* 1))))
+;;(format t "~%dropPuyos: onePosY=~D twoPosY=~D arefOne=~D" *onePosY* *twoPosY* (aref *field* (getOffset *onePosX* (+ *onePosY* 1))))
 
 
 (defun dropPuyos ()
   "this function lets the stones drop"
-  (if (and (< *onePosY* *fieldH*) (< *twoPosY* *fieldH*)
+  (if (and (< (+ *onePosY* 1) *fieldH*) (< (+ *twoPosY* 1) *fieldH*)
 	   (= (aref *field* (getOffset *onePosX* (+ *onePosY* 1))) -1)
 	   (= (aref *field* (getOffset *twoPosX* (+ *twoPosY* 1))) -1))
       (progn
+	(format t "~%drop is true")
 	(setf *twoPosY* (+ *twoPosY* 1))
 	(setf *onePosY* (+ *onePosY* 1)))))
   
@@ -122,7 +121,7 @@
 		     (moveToRight)))
   (:idle ()
 	 ;;let's test a bit
-	 (format t "~%uwe are in idle mode")
+	 (format t "~%we are in idle mode")
 	 (updatePosition)
 	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 	 (drawPuyo *onePosX* *onePosY* *oneCol*)
@@ -132,5 +131,5 @@
 
 ;;we are done. bye bye
 (setf *run* 0)
-(format t "~%uwe are done...")
+(format t "~%we are done...")
 (lispbuilder-sdl:quit-sdl)
