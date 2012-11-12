@@ -2,20 +2,17 @@
 
 (in-package #:cl-puyopuyo)
 
-;;the puyo sprites are 32x32 pixels
-(defvar *fieldW* (* 32 6)
-  "Global field width var")
-
-(defvar *fieldH* (* 32 12)
-  "Global field height var")
-
 ;;puyos are represented in an simple 6*12 array. with this it is easy to backtrack later neighboring puyos
-(defparameter *field* (make-array (* 6 12)))
-
+(defvar *fieldW* 6)
+(defvar *fieldH* 12)
+(defparameter *field* (make-array (* *fieldW* *fieldH*)))
 
 (setf *random-state* (make-random-state t))
 
+(defvar *run* 1)
 
+
+;we should make clos-objects
 (defvar *oneCol* 0 )
 (defvar *onePosX* 0)
 (defvar *onePosY* 0)
@@ -32,7 +29,9 @@
 
 
 (lispbuilder-sdl:init-video)
-(lispbuilder-sdl:window *fieldW* *fieldH*)
+;;the puyo sprites are 32x32 pixels
+
+(lispbuilder-sdl:window  (* 32 *fieldW*) (* 32 *fieldH*) )
 (lispbuilder-sdl:init-subsystems lispbuilder-sdl:sdl-init-timer)
 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 
@@ -44,6 +43,7 @@
 
 (defun drawPuyo (x y col)
   "draws a puyo at coordinates x,y. x,y are puyo field coordinates in the dimension of 6 width and 12 height puyos. due to the fact that we start counting from zero 5,11 is the max coordiante."
+  (format t "~%u drawPuyo called with x=~D and y=~D and col=~D" x y col)
   (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
       (case col
 	(0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
@@ -97,7 +97,7 @@
       (progn
 	(setf *twoPosY* (+ *twoPosY* 1))
 	(setf *onePosY* (+ *onePosY* 1)))))
-
+  
 
 
 
@@ -107,9 +107,7 @@
   (loop do 
        (dropPuyos)
        (sleep 1)
-     while(/= 1 *pauseThread*))
-  (format t "~%updatePosition:end"))
-
+     while (/= 1 *run*)))
 
 ;;game-loop
 (clearField)
@@ -133,6 +131,6 @@
 	 (lispbuilder-sdl:update-display)))
 
 ;;we are done. bye bye
-
+(setf *run* 0)
 (format t "~%uwe are done...")
 (lispbuilder-sdl:quit-sdl)
