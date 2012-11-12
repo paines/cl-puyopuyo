@@ -2,16 +2,15 @@
 
 (in-package #:cl-puyopuyo)
 
+;;the puyo sprites are 32x32 pixels
 (defvar *fieldW* (* 32 6)
   "Global field width var")
 
 (defvar *fieldH* (* 32 12)
   "Global field height var")
 
+;;puyos are represented in an simple 6*12 array. with this it is easy to backtrack later neighboring puyos
 (defparameter *field* (make-array (* 6 12)))
-
-(defvar *pauseThread* 0)
-(setq *pauseThread* 0)
 
 
 (setf *random-state* (make-random-state t))
@@ -69,31 +68,51 @@
 
 (defun moveToLeft ()
   "this updates position of stone one to the left, if possible"
-  (format t "~% left"))
+  (format t "~% left")
+  (if (and (< *onePosX* *fieldW*) (>= *onePosX* 0) (< *twoPosX* *fieldW*) (>= *twoPosX* 0))
+      (progn
+	(setf *onePosX* (- *onePosX* 1))
+	(setf *twoPosX* (- *twoPosX* 1)))))
+
+(defun moveToRight ()
+  "this updates position of stone one to the right, if possible"
+  (format t "~% right")
+  (if (and (< *onePosX* *fieldW*) (>= *onePosX* 0) (< *twoPosX* *fieldW*) (>= *twoPosX* 0))
+      (progn
+	(setf *onePosX* (+ *onePosX* 1))
+	(setf *twoPosX* (+ *twoPosX* 1)))))
+
+(defun getOffset (x y)
+  (+ (* y 12) x))
+
+
+					;(format t "~%dropPuyos: onePosY=~D twoPosY=~D arefOne=~D" *onePosY* *twoPosY* (aref *field* (getOffset *onePosX* (+ *onePosY* 1))))
+
 
 (defun dropPuyos ()
   "this function lets the stones drop"
-  (format t "~%dropPuyos:here we go")
-  (setf *onePosY* (+ *onePosY* 1))
-  (setf *twoPosY* (+ *twoPosY* 1))
-  )
+  (if (and (< *onePosY* *fieldH*) (< *twoPosY* *fieldH*)
+	   (= (aref *field* (getOffset *onePosX* (+ *onePosY* 1))) -1)
+	   (= (aref *field* (getOffset *twoPosX* (+ *twoPosY* 1))) -1))
+      (progn
+	(setf *twoPosY* (+ *twoPosY* 1))
+	(setf *onePosY* (+ *onePosY* 1)))))
+
+
 
 
 (defun updatePosition ()
-  "threaded function which will update pos each second"
+  "function which will update pos each second"
   (format t "~%updatePosition:here we go")
   (loop do 
-       (format t "~%updatePosition loop")
        (dropPuyos)
        (sleep 1)
      while(/= 1 *pauseThread*))
-    (format t "~%updatePosition:end"))
+  (format t "~%updatePosition:end"))
 
-    
-;;this will kick of out thread
-(defvar *thr* (bordeaux-threads:make-thread #'updatePosition :name "upos"))
 
 ;;game-loop
+(clearField)
 (lispbuilder-sdl:with-events (:poll)
   (:quit-event () T)
   (:key-down-event (:key key)
@@ -102,10 +121,11 @@
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
 		     (moveToLeft))
 		   (when (lispbuilder-sdl:key= key :sdl-key-right)
-		     (dropPuyos)))
+		     (moveToRight)))
   (:idle ()
 	 ;;let's test a bit
-	 (clearField)
+	 (format t "~%uwe are in idle mode")
+	 (updatePosition)
 	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 	 (drawPuyo *onePosX* *onePosY* *oneCol*)
 	 (drawPuyo *twoPosX* *twoPosY* *twoCol*)
@@ -113,8 +133,6 @@
 	 (lispbuilder-sdl:update-display)))
 
 ;;we are done. bye bye
-;(bordeaux-threads:destroy-thread *thr*)
 
-(setf *pauseThread* 1)
-(sleep 1)
+(format t "~%uwe are done...")
 (lispbuilder-sdl:quit-sdl)
