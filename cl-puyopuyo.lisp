@@ -1,5 +1,8 @@
 (in-package #:cl-puyopuyo)
 
+(format t "~%init...")
+
+
 ;;puyos are represented in an simple 6*12 array. with this it is easy to backtrack later neighboring puyos
 (defvar *fieldW* 6)
 (defvar *fieldH* 12)
@@ -8,22 +11,17 @@
 (setf *random-state* (make-random-state t))
 
 (defvar *run* 1)
+(setq *run* 1)
 
+;a puyo consits of col 0-3 (blue, red, green and yellow and a position
+(defstruct puyo
+  x
+  y
+  col)
 
-;we should make clos-objects
-(defvar *oneCol* 0 )
-(defvar *onePosX* 0)
-(defvar *onePosY* 0)
-(setf *oneCol* (random 4))
-(setf *onePosX* 2)
-(setf *onePosY* 0)
-
-(defvar *twoCol* 0 )
-(defvar *twoPosX* 0)
-(defvar *twoPosY* 0)
-(setf *twoCol* (random 4))
-(setf *twoPosX* 3)
-(setf *twoPosY* 0)
+;;we need to stones, 1st and 2nd
+(defvar *first*  (make-puyo :x 2 :y 0 :col (random 4)))
+(defvar *second* (make-puyo :x 3 :y 0 :col (random 4)))
 
 
 (lispbuilder-sdl:init-video)
@@ -39,97 +37,92 @@
 (defparameter *green* (lispbuilder-sdl:load-image "puyo_green.png"))
 (defparameter *yellow* (lispbuilder-sdl:load-image "puyo_yellow.png"))
 
-(defun drawPuyo (x y col)
+(defun drawPuyo (puyo)
   "draws a puyo at coordinates x,y. x,y are puyo field coordinates in the dimension of 6 width and 12 height puyos. due to the fact that we start counting from zero 5,11 is the max coordiante."
-  (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
-  (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
-      (case col
-	(0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
-	(1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-	(2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-	(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*)))
-      (print "out of bounds")))
+
+  (let ((x (slot-value puyo 'x))
+	(y (slot-value puyo 'y))
+	(col (slot-value puyo 'col)))
+    (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
+    (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
+	(case col
+	  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
+	  (1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+	  (2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
 
 (defun clearField ()
-  (loop for x from 0 to 11 do
-       (loop for y from 0 to 5 do
-	  ;;	  (format t "~% x=~D y=~D index=~D" x y (+ (* y 12) y))
-	    (setf (aref *field* (+ (* y 12) x)) -1))))
+  (loop for y from 0 to 11 do
+       (loop for x from 0 to 5 do	    
+	    (setf (aref *field* (getOffset x y)) -1))))
 
-(defun drawField ()
-  (loop for x from 0 to 5 do
-       (loop for y from 0 to 11 do
-	    (drawPuyo x y (aref *field* (getOffset x y))))))
+(defun moveToLeft (puyo)
+  (format t "moveToLeft"))
 
+(defun moveToRight (puyo)
+  (format t "moveToRight"))
 
-
-(defun moveToLeft ()
-  "this updates position of stone one to the left, if possible"
-  (format t "~% left")
-  (if (and (< *onePosX* *fieldW*) (>= *onePosX* 0) (< *twoPosX* *fieldW*) (>= *twoPosX* 0))
-      (progn
-	(setf *onePosX* (- *onePosX* 1))
-	(setf *twoPosX* (- *twoPosX* 1)))))
-
-(defun moveToRight ()
-  "this updates position of stone one to the right, if possible"
-  (format t "~% right")
-  (if (and (< *onePosX* *fieldW*) (>= *onePosX* 0) (< *twoPosX* *fieldW*) (>= *twoPosX* 0))
-      (progn
-	(setf *onePosX* (+ *onePosX* 1))
-	(setf *twoPosX* (+ *twoPosX* 1)))))
 
 (defun getOffset (x y)
-  (format t "~%getOffset:: x=~D y=~D offset=~D" x y (+ (* 6 y) x))
+ ;; (format t "~%getOffset:: x=~D y=~D offset=~D" x y (+ (* 6 y) x))
   (+ (* y 6) x))
 
 
 ;;(format t "~%dropPuyos: onePosY=~D twoPosY=~D arefOne=~D" *onePosY* *twoPosY* (aref *field* (getOffset *onePosX* (+ *onePosY* 1))))
 
 
-(defun dropPuyos ()
-  "this function lets the stones drop"
-  (if (and (< (+ *onePosY* 1) *fieldH*) (< (+ *twoPosY* 1) *fieldH*)
-	   (= (aref *field* (getOffset *onePosX* (+ *onePosY* 1))) -1)
-	   (= (aref *field* (getOffset *twoPosX* (+ *twoPosY* 1))) -1))
-      (progn
-	(format t "~%drop is true")
-	(setf *twoPosY* (+ *twoPosY* 1))
-	(setf *onePosY* (+ *onePosY* 1)))))
+(defun dropPuyo (puyo)
+  (if (and (< (+ (getYpos puyo) 1) *fieldH*)
+	   (= (aref *field* (getOffset (getXpos puyo) (+ (getYpos puyo) 1))) -1))
+      (setf (slot-value puyo 'y) (+ (slot-value puyo 'y) 1))))
   
-
-
-
-(defun updatePosition ()
-  "function which will update pos each second"
-  (format t "~%updatePosition:here we go")
+(defun updatePosition 
   (loop do 
-       (dropPuyos)
+       (dropPuyo first) 
+       (dropPuyo second) 
        (sleep 1)
-     while (/= 1 *run*)))
+     while (= 1 *run*)))
+
+(defun getCol (puyo)
+  (slot-value puyo 'col)) 
+
+(defun getXpos (puyo)
+  (slot-value puyo 'x))
+
+(defun getYpos (puyo)
+  (slot-value puyo 'y))
 
 ;;game-loop
+
+;;we need to clear the gaming field
 (clearField)
+
+
+
+(format t "~%starting thread")
+(bordeaux-threads:make-thread #'updatePosition :name "upos")
+(format t "~%starting thread done")
+
 (lispbuilder-sdl:with-events (:poll)
   (:quit-event () T)
   (:key-down-event (:key key)
 		   (when (lispbuilder-sdl:key= key :sdl-key-escape)
 		     (lispbuilder-sdl:push-quit-event))
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
-		     (moveToLeft))
+		     (movetoLeft first ))
 		   (when (lispbuilder-sdl:key= key :sdl-key-right)
-		     (moveToRight)))
+		     (moveToRight first)))		   
   (:idle ()
-	 ;;let's test a bit
-	 (format t "~%we are in idle mode")
-	 (updatePosition)
+;;	 (format t "~%we are in idle mode")
 	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
-	 (drawPuyo *onePosX* *onePosY* *oneCol*)
-	 (drawPuyo *twoPosX* *twoPosY* *twoCol*)
-	 (drawField)
+	 (drawPuyo first)
+	 (drawPuyo second)
+	 (clearField)
 	 (lispbuilder-sdl:update-display)))
+
 
 ;;we are done. bye bye
 (setf *run* 0)
+(sleep 1)
 (format t "~%we are done...")
 (lispbuilder-sdl:quit-sdl)
