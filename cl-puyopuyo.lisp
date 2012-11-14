@@ -42,12 +42,10 @@
 (defparameter *yellow* (lispbuilder-sdl:load-image "puyo_yellow.png"))
 
 (defun drawPuyo (puyo)
-  "draws a puyo at coordinates x,y. x,y are puyo field coordinates in the dimension of 6 width and 12 height puyos. due to the fact that we start counting from zero 5,11 is the max coordiante."
-
   (let ((x (slot-value puyo 'x))
 	(y (slot-value puyo 'y))
 	(col (slot-value puyo 'col)))
-    (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
+;;    (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
     (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
 	(case col
 	  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
@@ -60,11 +58,38 @@
        (loop for x from 0 to 5 do	    
 	    (setf (aref *field* (getOffset x y)) -1))))
 
-(defun moveToLeft (puyo)
-  (format t "moveToLeft"))
 
-(defun moveToRight (puyo)
-  (format t "moveToRight"))
+
+(defun moveToLeft (f s)
+  (let ((fx (slot-value f 'x))
+	(fy (slot-value f 'y))
+	(sy (slot-value s 'y))
+	(sx (slot-value s 'x)))
+    ;;check if fx<sx, field x-1 is empty and if we are in bounds
+    (if (and (< fx sx) (> fx 0) (>= sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
+	(progn
+	  (setf (slot-value f 'x) (- fx 1))
+	  (setf (slot-value s 'x) (- sx 1))))
+
+   (if (and (> fx sx) (>= fx 0) (> sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
+	(progn
+	  (setf (slot-value f 'x) (- fx 1))
+	  (setf (slot-value s 'x) (- sx 1))))
+
+))
+
+(defun moveToRight (f s)
+  (let ((fx (slot-value f 'x))
+	(fy (slot-value f 'y))
+	(sy (slot-value s 'y))
+	(sx (slot-value s 'x)))
+    ;;check if fx<sx, field x-1 is empty and if we are in bounds
+    (if (and (< fx sx) (< fx (- *fieldW* 1)) (< sx (- *fieldW* 1))(= (aref *field* (getOffset (+ sx 1) sy)) -1))
+	(progn
+	  (setf (slot-value s 'x) (+ sx 1))
+	  (setf (slot-value f 'x) (+ fx 1))))
+))
+
 
 
 (defun getOffset (x y)
@@ -119,11 +144,10 @@
 		   (when (lispbuilder-sdl:key= key :sdl-key-escape)
 		     (lispbuilder-sdl:push-quit-event))
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
-		     (movetoLeft *first* )
-		     (movetoLeft *second* ))
+		     (movetoLeft *first* *second*))
 		   (when (lispbuilder-sdl:key= key :sdl-key-right)
-		     (moveToRight *first*)
-		     (moveToRight *second*)))		   
+		     (moveToRight *first* *second*)))
+
   (:idle ()
 ;;	 (format t "~%we are in idle mode")
 	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
