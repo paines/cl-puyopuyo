@@ -2,10 +2,11 @@
 
 (format t "~%init...")
 
-
-;;puyos are represented in an simple 6*12 array. with this it is easy to backtrack later neighboring puyos
+(defvar *puyoW* 32)
+(defvar *puyoH* 32)
 (defvar *fieldW* 6)
 (defvar *fieldH* 12)
+(defvar *maxCols* 4)
 (defparameter *field* (make-array (* *fieldW* *fieldH*)))
 
 (setf *random-state* (make-random-state t))
@@ -16,8 +17,7 @@
 (defvar *run* nil)
 (setf *run* 1)
 
-
-;a puyo consits of col 0-3 (blue, red, green and yellow and a position
+;a puyo consists of col 0-3 (blue, red, green and yellow and a position
 (defstruct puyo
   x
   y
@@ -28,14 +28,18 @@
 (defvar *first* nil)
 (defvar *second* nil)
 
-(setf *first*  (make-puyo :x 2 :y 0 :col (random 4)))
-(setf *second* (make-puyo :x 3 :y 0 :col (random 4)))
+(setf *first*  (make-puyo :x 2 :y 0 :col 0))
+(setf *second* (make-puyo :x 3 :y 0 :col 1))
+
+;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*)))
+;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*)))
 
 
+;;sdl
 (lispbuilder-sdl:init-video)
-;;the puyo sprites are 32x32 pixels
 
-(lispbuilder-sdl:window  (* 32 *fieldW*) (* 32 *fieldH*) )
+;;the puyo sprites are 32x32 pixels
+(lispbuilder-sdl:window  (* *puyoW* *fieldW*) (* *puyoH* *fieldH*) )
 (lispbuilder-sdl:init-subsystems lispbuilder-sdl:sdl-init-timer)
 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 
@@ -49,7 +53,6 @@
   (let ((x (slot-value puyo 'x))
 	(y (slot-value puyo 'y))
 	(col (slot-value puyo 'col)))
-;;    (format t "~%drawPuyo:: x=~D and y=~D and col=~D" x y col)
     (if (and (< x *fieldW*) (< y *fieldH*) (< col 4))
 	(case col
 	  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
@@ -58,11 +61,9 @@
 	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
 
 (defun clearField ()
-  (loop for y from 0 to 11 do
-       (loop for x from 0 to 5 do	    
+  (loop for y from 0 to (- *fieldW* 1)  do
+       (loop for x from 0 to (- *fieldH* 1) do	    
 	    (setf (aref *field* (getOffset x y)) -1))))
-
-
 
 (defun moveToLeft (f s)
   (setf *state* 'pause)
@@ -70,7 +71,6 @@
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
 	(sx (slot-value s 'x)))
-    ;;check if fx<sx, field x-1 is empty and if we are in bounds
     (if (and (< fx sx) (> fx 0) (>= sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
 	(progn
 	  (setf (slot-value f 'x) (- fx 1))
@@ -101,33 +101,39 @@
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
 	(sx (slot-value s 'x)))
-    (if (< fx sx)
-	(progn
-	  (setf (slot-value f 'y) (- sy 1))
-	  (setf (slot-value f 'x) sx)))	
-    (if (>= fx sx)
-;	(format t "~% wir sind hier du doof")
-	(progn
-	  (setf (slot-value s 'x) (- sx 1))
-	  (setf (slot-value s 'y) (- sy 1)))))
-  ;;(set (slot-value f 'y) (+ fy 1)))))
-  (setf *state* 'unpause))
+    (format t "~%fx=~D fy=~D sx=~D sy=~D" fx fy sx sy)
+    (cond
+      ((< fx sx)
+       (progn
+	 (format t "~%1st")
+	 (setf (slot-value f 'y) (- sy 1))
+	 (setf (slot-value f 'x) sx)))	
+      ((= fx sx) (= (- fy 1) sy)
+       (progn
+	 (format t "~%2nd")
+;	 (setf (slot-value f 'x) (+ sy 1))
+	 (setf (slot-value s 'y) (- sy 1))
+	 (setf (slot-value s 'x) (- sx 1))))
+      ((> fx sx) (= fy sy)
+       (progn
+	 (format t "~%3rd")
+	 (setf (slot-value s 'x) (+ sx 1))
+	 (setf (slot-value s 'y) (- sy 1))))
+      ((< sy fy) (= fx sx)
+       (progn
+	 (format t "~%4th")
+	 (setf (slot-value s 'y) (- sy 1))
+	 (setf (slot-value s 'x) (+ sy 1))))))	 	
+    (setf *state* 'unpause))
   
-
-
-
 (defun getOffset (x y)
- ;; (format t "~%getOffset:: x=~D y=~D offset=~D" x y (+ (* 6 y) x))
-  (+ (* y 6) x))
+  (+ (* y *fieldW*) x))
 
 
-;;(format t "~%dropPuyos: onePosY=~D twoPosY=~D arefOne=~D" *onePosY* *twoPosY* (aref *field* (getOffset *onePosX* (+ *onePosY* 1))))
-
-
-(defun dropPuyo (puyo)
-  (if (and (< (+ (getYpos puyo) 1) *fieldH*)
-	   (= (aref *field* (getOffset (getXpos puyo) (+ (getYpos puyo) 1))) -1))
-      (setf (slot-value puyo 'y) (+ (slot-value puyo 'y) 1))))
+(defun dropPuyo (p)
+  (if (and (< (+ (slot-value p 'y) 1) *fieldH*)
+	   (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
+      (setf (slot-value p 'y) (+ (slot-value p 'y) 1))))
   
 (defun updatePosition ()
   "threaded function which will update pos each second"
@@ -141,17 +147,6 @@
        (sleep 1)
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
-
-
-
-(defun getCol (puyo)
-  (slot-value puyo 'col)) 
-
-(defun getXpos (puyo)
-  (slot-value puyo 'x))
-
-(defun getYpos (puyo)
-  (slot-value puyo 'y))
 
 ;;game-loop
 
@@ -182,7 +177,7 @@
 
   (:idle ()
 ;;	 (format t "~%we are in idle mode")
-	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+ (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 	 (drawPuyo *first*)
 	 (drawPuyo *second*)
 	 (clearField)
