@@ -108,7 +108,7 @@
 	 (format t "~%1st")
 	 (setf (slot-value f 'y) (- sy 1))
 	 (setf (slot-value f 'x) sx)))	
-      ((= fx sx) (= (- fy 1) sy)
+      ( (< fy sy)(= fx sx)
        (progn
 	 (format t "~%2nd")
 ;	 (setf (slot-value f 'x) (+ sy 1))
@@ -119,7 +119,7 @@
 	 (format t "~%3rd")
 	 (setf (slot-value s 'x) (+ sx 1))
 	 (setf (slot-value s 'y) (- sy 1))))
-      ((< sy fy) (= fx sx)
+      ((> fy sy)(= fx sx)
        (progn
 	 (format t "~%4th")
 	 (setf (slot-value s 'y) (- sy 1))
