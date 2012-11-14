@@ -20,8 +20,12 @@
   col)
 
 ;;we need to stones, 1st and 2nd
-(defvar *first*  (make-puyo :x 2 :y 0 :col (random 4)))
-(defvar *second* (make-puyo :x 3 :y 0 :col (random 4)))
+;;these need to be global, so that the updatePosition thread can access the stones
+(defvar *first* nil)
+(defvar *second* nil)
+
+(setf *first*  (make-puyo :x 2 :y 0 :col (random 4)))
+(setf *second* (make-puyo :x 3 :y 0 :col (random 4)))
 
 
 (lispbuilder-sdl:init-video)
@@ -76,12 +80,18 @@
 	   (= (aref *field* (getOffset (getXpos puyo) (+ (getYpos puyo) 1))) -1))
       (setf (slot-value puyo 'y) (+ (slot-value puyo 'y) 1))))
   
-(defun updatePosition 
+(defun updatePosition ()
+  "threaded function which will update pos each second"
+  (format t "~%updatePosition:here we go")
   (loop do 
-       (dropPuyo first) 
-       (dropPuyo second) 
+       (format t "~%updatePosition loop")
+       (dropPuyo *first*)
+       (dropPuyo *second*)
        (sleep 1)
-     while (= 1 *run*)))
+     while(= 1 *run*))
+    (format t "~%updatePosition:end"))
+
+
 
 (defun getCol (puyo)
   (slot-value puyo 'col)) 
@@ -109,14 +119,16 @@
 		   (when (lispbuilder-sdl:key= key :sdl-key-escape)
 		     (lispbuilder-sdl:push-quit-event))
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
-		     (movetoLeft first ))
+		     (movetoLeft *first* )
+		     (movetoLeft *second* ))
 		   (when (lispbuilder-sdl:key= key :sdl-key-right)
-		     (moveToRight first)))		   
+		     (moveToRight *first*)
+		     (moveToRight *second*)))		   
   (:idle ()
 ;;	 (format t "~%we are in idle mode")
 	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
-	 (drawPuyo first)
-	 (drawPuyo second)
+	 (drawPuyo *first*)
+	 (drawPuyo *second*)
 	 (clearField)
 	 (lispbuilder-sdl:update-display)))
 
