@@ -10,8 +10,12 @@
 
 (setf *random-state* (make-random-state t))
 
-(defvar *run* 1)
-(setq *run* 1)
+(defvar *state* nil)
+(setf *state* 'unpause)
+
+(defvar *run* nil)
+(setf *run* 1)
+
 
 ;a puyo consits of col 0-3 (blue, red, green and yellow and a position
 (defstruct puyo
@@ -61,6 +65,7 @@
 
 
 (defun moveToLeft (f s)
+  (setf *state* 'pause)
   (let ((fx (slot-value f 'x))
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
@@ -74,11 +79,11 @@
    (if (and (> fx sx) (>= fx 0) (> sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
 	(progn
 	  (setf (slot-value f 'x) (- fx 1))
-	  (setf (slot-value s 'x) (- sx 1))))
-
-))
+	  (setf (slot-value s 'x) (- sx 1)))))
+    (setf *state* 'unpause))
 
 (defun moveToRight (f s)
+  (setf *state* 'pause)
   (let ((fx (slot-value f 'x))
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
@@ -87,8 +92,27 @@
     (if (and (< fx sx) (< fx (- *fieldW* 1)) (< sx (- *fieldW* 1))(= (aref *field* (getOffset (+ sx 1) sy)) -1))
 	(progn
 	  (setf (slot-value s 'x) (+ sx 1))
-	  (setf (slot-value f 'x) (+ fx 1))))
-))
+	  (setf (slot-value f 'x) (+ fx 1)))))
+  (setf *state* 'unpause))
+
+(defun rotateStones (f s)
+  (setf *state* 'pause)
+  (let ((fx (slot-value f 'x))
+	(fy (slot-value f 'y))
+	(sy (slot-value s 'y))
+	(sx (slot-value s 'x)))
+    (if (< fx sx)
+	(progn
+	  (setf (slot-value f 'y) (- sy 1))
+	  (setf (slot-value f 'x) sx)))	
+    (if (>= fx sx)
+;	(format t "~% wir sind hier du doof")
+	(progn
+	  (setf (slot-value s 'x) (- sx 1))
+	  (setf (slot-value s 'y) (- sy 1)))))
+  ;;(set (slot-value f 'y) (+ fy 1)))))
+  (setf *state* 'unpause))
+  
 
 
 
@@ -110,11 +134,13 @@
   (format t "~%updatePosition:here we go")
   (loop do 
        (format t "~%updatePosition loop")
-       (dropPuyo *first*)
-       (dropPuyo *second*)
+       (if (eq *state* 'unpause)
+	   (progn
+	     (dropPuyo *first*)
+	     (dropPuyo *second*)))
        (sleep 1)
      while(= 1 *run*))
-    (format t "~%updatePosition:end"))
+  (format t "~%updatePosition:end"))
 
 
 
@@ -143,6 +169,12 @@
   (:key-down-event (:key key)
 		   (when (lispbuilder-sdl:key= key :sdl-key-escape)
 		     (lispbuilder-sdl:push-quit-event))
+		   (when (lispbuilder-sdl:key= key :sdl-key-p)
+		     (setf *state* 'pause))
+		   (when (lispbuilder-sdl:key= key :sdl-key-u)
+		     (setf *state* 'unpause))
+		   (when (lispbuilder-sdl:key= key :sdl-key-up)
+		     (rotateStones *first* *second*))
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
 		     (movetoLeft *first* *second*))
 		   (when (lispbuilder-sdl:key= key :sdl-key-right)
