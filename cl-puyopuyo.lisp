@@ -122,8 +122,8 @@
       ((> fy sy)(= fx sx)
        (progn
 	 (format t "~%4th")
-	 (setf (slot-value s 'y) (- sy 1))
-	 (setf (slot-value s 'x) (+ sy 1))))))	 	
+	 (setf (slot-value s 'y) (+ sy 1))
+	 (setf (slot-value f 'x) (- sx 1))))))	 	
     (setf *state* 'unpause))
   
 (defun getOffset (x y)
