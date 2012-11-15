@@ -11,7 +11,7 @@
 
 (setf *random-state* (make-random-state t))
 
-(defvar *state* nil)
+(defvar *state1* nil)
 (setf *state* 'unpause)
 
 (defvar *run* nil)
@@ -23,16 +23,12 @@
   y
   col)
 
-;;we need to stones, 1st and 2nd
+;;we need two stones, 1st and 2nd
 ;;these need to be global, so that the updatePosition thread can access the stones
 (defvar *first* nil)
 (defvar *second* nil)
-
-(setf *first*  (make-puyo :x 2 :y 0 :col 0))
-(setf *second* (make-puyo :x 3 :y 0 :col 1))
-
-;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*)))
-;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*)))
+(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*)))
+(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*)))
 
 
 ;;sdl
@@ -48,6 +44,7 @@
 (defparameter *red* (lispbuilder-sdl:load-image "puyo_red.png"))
 (defparameter *green* (lispbuilder-sdl:load-image "puyo_green.png"))
 (defparameter *yellow* (lispbuilder-sdl:load-image "puyo_yellow.png"))
+(defparameter *gameover* (lispbuilder-sdl:load-image "gameover.png"))
 
 (defun drawPuyo (puyo)
   (let ((x (slot-value puyo 'x))
@@ -61,9 +58,20 @@
 	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
 
 (defun clearField ()
-  (loop for y from 0 to (- *fieldW* 1)  do
-       (loop for x from 0 to (- *fieldH* 1) do	    
+  (loop for y from 0 to (- *fieldH* 1)  do
+       (loop for x from 0 to (- *fieldW* 1) do	    
 	    (setf (aref *field* (getOffset x y)) -1))))
+
+(defun drawField ()
+  (loop for y from 0 to (- *fieldH* 1)  do
+       (loop for x from 0 to (- *fieldW* 1) do	    
+	    (let ((col (aref *field* (getOffset x y))))
+	      	(case col
+		  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
+		  (1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+		  (2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+		  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*)))))))
+
 
 (defun moveToLeft (f s)
   (setf *state* 'pause)
@@ -133,7 +141,15 @@
 (defun dropPuyo (p)
   (if (and (< (+ (slot-value p 'y) 1) *fieldH*)
 	   (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
-      (setf (slot-value p 'y) (+ (slot-value p 'y) 1))))
+      (progn
+	(setf (slot-value p 'y) (+ (slot-value p 'y) 1)))
+      (progn
+	(let ((x (slot-value p 'x))
+	      (y (slot-value p 'y))
+	      (col (slot-value p 'col)))
+	  (format t "~%setting x=~D y=~D col=~D" x y col)
+	  (setf (aref *field* (getOffset x y)) col))
+	(setf *state* 'newPuyos))))
   
 (defun updatePosition ()
   "threaded function which will update pos each second"
@@ -142,8 +158,26 @@
        (format t "~%updatePosition loop")
        (if (eq *state* 'unpause)
 	   (progn
-	     (dropPuyo *first*)
-	     (dropPuyo *second*)))
+	     (dropPuyo *first*) 
+	     (dropPuyo *second*)
+	     (if (eq *state* 'newPuyos)
+		 (progn
+		   (format t "~%make new puyos")
+		   (if (and (/= (aref *field* (getOffset 2 0)) -1) (/= (aref *field* (getOffset 3 0)) -1))
+		       (progn
+		       (lispbuilder-sdl:draw-surface-at-* *gameover* 0 0 :surface lispbuilder-sdl:*default-display*)
+		       (lispbuilder-sdl:update-display)
+		       (sleep 3)
+		       (setf *run* 0))
+		       (progn
+			 (setf (slot-value *first* 'x) 2 )
+			 (setf (slot-value *first* 'y) 0 )
+			 (setf (slot-value *first* 'col) (random *maxCols*))
+			 (setf (slot-value *second* 'x) 3 )
+			 (setf (slot-value *second* 'y) 0 )
+			 (setf (slot-value *second* 'col) (random *maxCols*))
+			 (setf *state* 'unpause)))))))
+       (format t "~%should drop")
        (sleep 1)
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
@@ -177,10 +211,10 @@
 
   (:idle ()
 ;;	 (format t "~%we are in idle mode")
- (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+	 (drawField)
 	 (drawPuyo *first*)
 	 (drawPuyo *second*)
-	 (clearField)
 	 (lispbuilder-sdl:update-display)))
 
 
@@ -189,3 +223,4 @@
 (sleep 1)
 (format t "~%we are done...")
 (lispbuilder-sdl:quit-sdl)
+
