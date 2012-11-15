@@ -83,11 +83,14 @@
 	(progn
 	  (setf (slot-value f 'x) (- fx 1))
 	  (setf (slot-value s 'x) (- sx 1))))
-
-   (if (and (> fx sx) (>= fx 0) (> sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
+    (if (and (> fx sx) (>= fx 0) (> sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
 	(progn
 	  (setf (slot-value f 'x) (- fx 1))
-	  (setf (slot-value s 'x) (- sx 1)))))
+	  (setf (slot-value s 'x) (- sx 1))))
+    (if (and (= fx sx) (= (aref *field* (getOffset (- sx 1) (- sy 1))) -1) (= (aref *field* (getOffset (- fx 1) (- fy 1))) -1))
+	(progn
+	  (setf (slot-value f 'x) (- fx 1))
+	  (setf (slot-value s 'x) (- fx 1)))))
     (setf *state* 'unpause))
 
 (defun moveToRight (f s)
@@ -100,7 +103,11 @@
     (if (and (< fx sx) (< fx (- *fieldW* 1)) (< sx (- *fieldW* 1))(= (aref *field* (getOffset (+ sx 1) sy)) -1))
 	(progn
 	  (setf (slot-value s 'x) (+ sx 1))
-	  (setf (slot-value f 'x) (+ fx 1)))))
+	  (setf (slot-value f 'x) (+ fx 1))))
+    (if (and (= fx sx) (= (aref *field* (getOffset (- sx 1) (- sy 1))) -1) (= (aref *field* (getOffset (- fx 1) (- fy 1))) -1))
+	(progn
+	  (setf (slot-value f 'x) (+ fx 1))
+	  (setf (slot-value s 'x) (+ fx 1)))))
   (setf *state* 'unpause))
 
 (defun rotateStones (f s)
@@ -131,8 +138,9 @@
        (progn
 	 (format t "~%4th")
 	 (setf (slot-value s 'y) (+ sy 1))
-	 (setf (slot-value f 'x) (- sx 1))))))	 	
-    (setf *state* 'unpause))
+	 (setf (slot-value f 'x) (- sx 1))))))
+  (format t "~%end rotate stone")
+  (setf *state* 'unpause))
   
 (defun getOffset (x y)
   (+ (* y *fieldW*) x))
