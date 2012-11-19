@@ -1,4 +1,4 @@
- (In-package #:cl-puyopuyo)
+ (in-package #:cl-puyopuyo)
 
  (format t "~%init...")
 
@@ -165,7 +165,7 @@
 	 (let ((x (slot-value p 'x))
 	       (y (slot-value p 'y))
 	       (col (slot-value p 'col)))
-	   (format t "~%setting x=~D y=~D col=~D" x y col)
+;	   (format t "~%setting x=~D y=~D col=~D" x y col)
 	   (setf (aref *field* (getOffset x y)) col))
 	 (setf *state* 'newPuyos))))
 
@@ -212,19 +212,21 @@
  (defun backtrack (f x y col) 
    (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
    
-   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
-       (if (or (backtrack f (+ x 1) y col)
-	       (backtrack f x (- y 1) col)
-	       (backtrack f (- x 1) y col)
-	       (backtrack f x (+ y 1) col))
-	   (progn
-	     (format t "~%pushing x=~D y=~D to list" x y)
-	     (setf *matchStones* (+ *matchStones* 1))
-	     (setq *coordsList* (append *coordsList* '((x y)))))))
+   (if (and (backtrack f (+ x 1) y col)
+	   (backtrack f x (- y 1) col)
+	   (backtrack f (- x 1) y col)
+	   (backtrack f x (+ y 1) col))
 	   
-   (if (/= (aref f (getOffset x y)) col)
-       nil)
-   
+       (progn
+	 (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
+	     (if (/= (aref f (getOffset x y)) col)	
+		 (progn
+		   (format t "~%pushing x=~D y=~D to list" x y)
+		   (setf *matchStones* (+ *matchStones* 1))
+		   (setq *coordsList* (append *coordsList* '((x y))))))
+	     nil)
+	 nil))
+
    (format t "~%num of matchStones=~D" *matchStones*)
    (if (>= *matchStones* 4)
        (progn
@@ -279,3 +281,7 @@
 (format t "~%we are done...")
 (lispbuilder-sdl:quit-sdl)
 
+(defun factorial (x)
+  (if (= x 0)
+      1    
+      (* x (factorial (- x 1)))))
