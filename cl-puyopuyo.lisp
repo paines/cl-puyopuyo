@@ -7,14 +7,20 @@
 (defvar *fieldW* 6)
 (defvar *fieldH* 12)
 (defvar *maxCols* 4)
+
+;(defvar *lastTicks* 0)
+(defvar *matchStones* 0)
+(setf  *matchStones* 0)
+
 (defparameter *field* (make-array (* *fieldW* *fieldH*)))
 
 (setf *random-state* (make-random-state t))
 
-(defvar *state1* nil)
+(defvar *state* nil)
 (setf *state* 'unpause)
 
 (defvar *run* nil)
+
 (setf *run* 1)
 
 ;a puyo consists of col 0-3 (blue, red, green and yellow and a position
@@ -172,11 +178,10 @@
 		 (progn
 		   (format t "~%make new puyos")
 		   (if (and (/= (aref *field* (getOffset 2 0)) -1) (/= (aref *field* (getOffset 3 0)) -1))
-		       (progn
-		       (lispbuilder-sdl:draw-surface-at-* *gameover* 0 0 :surface lispbuilder-sdl:*default-display*)
-		       (lispbuilder-sdl:update-display)
-		       (sleep 3)
-		       (setf *run* 0))
+		       (progn		       
+			 (setf *run* 0)
+			 (lispbuilder-sdl:draw-surface-at-* *gameover* 0 0 :surface lispbuilder-sdl:*default-display*)
+			 (lispbuilder-sdl:update-display))
 		       (progn
 			 (setf (slot-value *first* 'x) 2 )
 			 (setf (slot-value *first* 'y) 0 )
@@ -186,15 +191,47 @@
 			 (setf (slot-value *second* 'col) (random *maxCols*))
 			 (setf *state* 'unpause)))))))
        (format t "~%should drop")
-       (sleep 1)
+     ;;(sleep 1)
+       ;; (let ((ticks (lispbuilder-sdl:sdl-get-ticks)))
+       ;; 	 (while (<= (- *lastTicks* ticks) 200000)
+       ;; 	   (sleep .1))
+       ;; 	 (setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks)))
+	       
+       (sleep .1)
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
+
+(defun backtrack (f x y col) 
+  (if (> (- x 1) 0)
+      (if (= (aref (getOffset (- x 1) y)) col)
+	  (progn
+	    (setf *matchStones* (+ *matchStones*))
+	    (backtrack f (- x 1) y col))))
+  (if (> (- y 1) 0)
+      (if (= (aref (getOffset x  (- y 1))) col)
+	  (progn
+	    (setf *matchStones* (+ *matchStones*))
+	    (backtrack f x (- y 1) y col))))
+  (if (< (+ x 1) *fieldW*)
+      (if (= (aref (getOffset (+ x 1) y)) col)
+	  (progn
+	    (setf *matchStones* (+ *matchStones*))
+	    (backtrack f (+ x 1) y col))))
+  (if (< (+ y 1) *fieldH*)
+      (if (= (aref (getOffset x  (+ y 1))) col)
+	  (progn
+	    (setf *matchStones* (+ *matchStones*))
+	    (backtrack f x (- y 1) y col))))
+  (if (>= *matchStones* 4)
+      
+)
+  
 
 ;;game-loop
 
 ;;we need to clear the gaming field
 (clearField)
-
+(setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks))
 
 
 (format t "~%starting thread")
@@ -219,13 +256,13 @@
 
   (:idle ()
 ;;	 (format t "~%we are in idle mode")
-	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
-	 (drawField)
-	 (drawPuyo *first*)
-	 (drawPuyo *second*)
-	 (lispbuilder-sdl:update-display)))
-
-
+	 (if (eq *run* 1)
+	     (progn
+	       (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+	       (drawField)
+	       (drawPuyo *first*)
+	       (drawPuyo *second*)
+	       (lispbuilder-sdl:update-display)))))
 ;;we are done. bye bye
 (setf *run* 0)
 (sleep 1)
