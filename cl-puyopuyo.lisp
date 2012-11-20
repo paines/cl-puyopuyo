@@ -173,7 +173,7 @@
    "threaded function which will update pos each second"
    (format t "~%updatePosition:here we go")
    (loop do 
-	(format t "~%updatePosition loop")
+;;	(format t "~%updatePosition loop")
 	(if (eq *state* 'unpause)
 	    (progn
 	      (dropPuyo *first*) 
@@ -181,7 +181,12 @@
 	      (if (eq *state* 'newPuyos)
 		  (progn
 		    (backtrack *field* (slot-value *first* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
-		    (backtrack *field* (slot-value *second* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
+		    (format t "~%matchStones=~D" *matchStones*)
+		    (setf *matchStones* 0)
+
+;;		    (backtrack *field* (slot-value *second* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
+		    
+
 		    (format t "~%make new puyos")
 		    (if (and (/= (aref *field* (getOffset 2 0)) -1) (/= (aref *field* (getOffset 3 0)) -1))
 			(progn		       
@@ -198,7 +203,7 @@
  ;;			 (setf (slot-value *second* 'col) (random *maxCols*))
 			  (setf (slot-value *second* 'col) 0)
 			  (setf *state* 'unpause)))))))
-	(format t "~%should drop")
+;;	(format t "~%should drop")
       ;;(sleep 1)
 	;; (let ((ticks (lispbuilder-sdl:sdl-get-ticks)))
 	;; 	 (while (<= (- *lastTicks* ticks) 200000)
@@ -210,34 +215,24 @@
    (format t "~%updatePosition:end"))
 
  (defun backtrack (f x y col) 
-   (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
+;;   (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
    
-   (if (and (backtrack f (+ x 1) y col)
-	   (backtrack f x (- y 1) col)
-	   (backtrack f (- x 1) y col)
-	   (backtrack f x (+ y 1) col))
-	   
-       (progn
-	 (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
-	     (if (/= (aref f (getOffset x y)) col)	
-		 (progn
-		   (format t "~%pushing x=~D y=~D to list" x y)
-		   (setf *matchStones* (+ *matchStones* 1))
-		   (setq *coordsList* (append *coordsList* '((x y))))))
-	     nil)
-	 nil))
-
-   (format t "~%num of matchStones=~D" *matchStones*)
-   (if (>= *matchStones* 4)
-       (progn
-	 (loop for x in *coordsList*
-	    do (blackenPuyo x))
-	 (setf *matchStones* 0)
-	 (setf *coordsList* nil))))
+   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
+       (if (= (aref f (getOffset x y)) col)
+	   (if (or (backtrack f (+ x 1) y col)
+		   (backtrack f x (+ y 1) col)
+		   (backtrack f (- x 1) y col)
+		   (backtrack f x (- y 1) col))
+	       nil)
+	   (progn
+	     (setf *matchStones* (+ *matchStones* 1))
+	     (setq *coordsList* (append *coordsList* '((x y))))))))
 
 (defun blackenPuyo (coords)
-     (lispbuilder-sdl:draw-surface-at-* *blackPuyo* (* (nth 0 coords) 32) (* (nth 1 coords) 32) :surface lispbuilder-sdl:*default-display*)
-  (lispbuilder-sdl:update-display))
+  (format t "~%blackenPuyo: x=~D y=~D" (nth 0 coords) (nth 1 coords))
+  (lispbuilder-sdl:draw-surface-at-* *blackPuyo* (* (nth 0 coords) 32) (* (nth 1 coords) 32) :surface lispbuilder-sdl:*default-display*)
+  (lispbuilder-sdl:update-display)
+  (sleep 2))
 
 ;;game-loop
 
