@@ -1,5 +1,5 @@
 (defpackage :cl-puyopuyo
-  (:use :common-lisp :quicklisp))
+  (:use :common-lisp :quicklisp ))
 
 (in-package :cl-puyopuyo)
 
@@ -22,6 +22,7 @@
 (setf  *matchStones* 0)
 
 (defparameter *field* (make-array (* *fieldW* *fieldH*)))
+(defparameter *solveField* (make-array (* *fieldW* *fieldH*)))
 
 (setf *random-state* (make-random-state t))
 
@@ -80,6 +81,12 @@
   (loop for y from 0 to (- *fieldH* 1)  do
        (loop for x from 0 to (- *fieldW* 1) do	    
 	    (setf (aref *field* (getOffset x y)) -1))))
+
+(defun copyField (src dst)
+  (loop for y from 0 to (- *fieldH* 1)  do
+       (loop for x from 0 to (- *fieldW* 1) do	    
+	    (setf (aref dst (getOffset x y)) (aref src (getOffset x y))))))
+
 
 (defun drawField ()
   (loop for y from 0 to (- *fieldH* 1)  do
@@ -141,7 +148,7 @@
        (progn
 	 (format t "~%1st")
 	 (setf (slot-value f 'y) (- sy 1))
-	 (setf (slot-value f 'x) sx)))	
+	 (setf (slot-value f 'x) sx)))
       ( (< fy sy)(= fx sx)
 	(progn
 	  (format t "~%2nd")
@@ -189,7 +196,9 @@
 	     (dropPuyo *second*)
 	     (if (eq *state* 'newPuyos)
 		 (progn
-		   (backtrack *field* (slot-value *first* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
+		   (copyField *field* *solveField*)
+		   (backtrack *solveField* (slot-value *first* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
+;;		   (backtrack *field* 1 11 0)
 		   (format t "~%matchStones=~D" *matchStones*)
 		   (setf *matchStones* 0)
 
@@ -223,21 +232,101 @@
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
 
-(defun backtrack (f x y col) 
+(defun backtrackXXX (f x y col)
+  
+  (format t "~%backtrack: x=~D y=~D col=~D" x y col)
+
+  (if (= (aref f (getOffset x y)) col)
+      (progn
+	(if (and (>= (+ x 1) 0 ) (>= y 0) (< (+ x 1) *fieldW*) (< y *fieldH*))
+	    (backtrack f (+ x 1) y col)
+	    T)
+	(if (and (>= x 0) (>= (+ y 1) 0) (< x *fieldW*) (< (+ y 1) *fieldH*))
+	    (backtrack f x (+ y 1) col)
+	    T)
+	(if (and (>= (- x 1) 0 ) (>= y 0) (< x *fieldW*) (< y *fieldH*))
+	    (backtrack f (- x 1) y col)
+	    T)
+	(if (and (>= x 0) (>= (- y 1) 0) (< *fieldW*) (< y *fieldH*))
+	    (backtrack f x (- y 1) col)
+	    T)
+	T)
+      (progn
+	(format t "~%zaehle hoch")
+	(setf *matchStones* (+ *matchStones* 1)))))
+	
+	    
+		 
+ ;; (cond
+	  ;;   ((= x 0)
+	  ;;    (format t "~%x ist gleich 0")
+	  ;;    (if (or
+	  ;; 	  (backtrack f (+ x 1) y col)
+	  ;; 	  (backtrack f x (- y 1) col)		  
+	  ;; 	  (backtrack f (- x 1) y col)
+	  ;; 	  (backtrack f x (+ y 1) col)		  
+	  ;; 	  nil)
+	  ;; 	 nil))
+	  ;;   ((= x (- *fieldW* 1))
+	  ;;    (format t "~%x ist gleich breite-1")
+	  ;;    (if (or
+	  ;; 	  (backtrack f (- x 1) y col)
+	  ;; 	  (backtrack f x (- y 1) col)
+	  ;; 	  (backtrack f x (+ y 1) col)
+	  ;; 	  (backtrack f (+ x 1) y col)
+	  ;; 	  nil)
+	  ;; 	 nil))
+	  ;;   (T
+	  ;;     (format t "~%x ist grösser 0")
+	  ;;     (if (or
+	  ;;   	   (backtrack f (+ x 1) y col)
+	  ;;   	   (backtrack f x (+ y 1) col)
+	  ;;   	   (backtrack f (- x 1) y col)
+	  ;; 	   (backtrack f x (- y 1) col)
+	  ;; 	   nil)
+	  ;; 	  nil)))		 
+	     
+
+
+(defun backtrackXYZ (f x y col) 
   (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
   
   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
       (if (= (aref f (getOffset x y)) col)
 	  (if (or
-	       (backtrack f (+ x 1) y col)
-	       (backtrack f x (+ y 1) col)
 	       (backtrack f (- x 1) y col)
 	       (backtrack f x (- y 1) col)
-	       nil)
-	      nil)
+	       (backtrack f (+ x 1) y col)
+	       (backtrack f x (+ y 1) col)
+	       T)
+	      T)
 	  (progn
 	    (setf *matchStones* (+ *matchStones* 1))
 	    (setq *coordsList* (append *coordsList* '((x y))))))))
+
+(defun backtrack (f x y col) 
+
+  (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
+  (break)  
+  (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
+      (if (= (aref f (getOffset x y)) 255)
+	  (format t "~%bt hier war ich schonmal")
+	  (progn
+	    (setf (aref f (getOffset x y)) 255)
+	    (if (= (aref f (getOffset x y)) col)
+		(if (or
+		     (backtrack f (+ x 1) y col)
+		     (backtrack f x (+ y 1) col)
+		     (backtrack f (- x 1) y col)
+		     (backtrack f x (- y 1) col)
+		     nil)
+		    nil))
+	    (progn	      
+	      (format t "~%~Tsaving x=~D y=~D" x y)
+	      (setf *matchStones* (+ *matchStones* 1))
+	      (setq *coordsList* (append *coordsList* '((x y)))))))))
+
+
 
 (defun blackenPuyo (coords)
   (format t "~%blackenPuyo: x=~D y=~D" (nth 0 coords) (nth 1 coords))
@@ -249,7 +338,7 @@
 
 ;;we need to clear the gaming field
 (clearField)
-					;(setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks))
+;;(setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks))
 
 
 (format t "~%starting thread")
