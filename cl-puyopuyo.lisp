@@ -65,6 +65,7 @@
 (defparameter *yellow* (lispbuilder-sdl:load-image "puyo_yellow.png"))
 (defparameter *gameover* (lispbuilder-sdl:load-image "gameover.png"))
 (defparameter *blackPuyo* (lispbuilder-sdl:load-image "black.png"))
+(defparameter *marker* (lispbuilder-sdl:load-image "marker.png"))
 
 (defun drawPuyo (puyo)
   (let ((x (slot-value puyo 'x))
@@ -75,7 +76,8 @@
 	  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
 	  (1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
 	  (2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
+	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+	  (255 (lispbuilder-sdl:draw-surface-at-* *marker* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
 
 (defun clearField ()
   (loop for y from 0 to (- *fieldH* 1)  do
@@ -88,15 +90,18 @@
 	    (setf (aref dst (getOffset x y)) (aref src (getOffset x y))))))
 
 
-(defun drawField ()
+(defun drawField(f)
   (loop for y from 0 to (- *fieldH* 1)  do
        (loop for x from 0 to (- *fieldW* 1) do	    
-	    (let ((col (aref *field* (getOffset x y))))
+	    (let ((col (aref f (getOffset x y))))
 	      (case col
 		(0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
 		(1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
 		(2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-		(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*)))))))
+		(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+		(255 (lispbuilder-sdl:draw-surface-at-* *marker* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
+
+)))))
 
 
 (defun moveToLeft (f s)
@@ -305,29 +310,29 @@
 	    (setq *coordsList* (append *coordsList* '((x y))))))))
 
 (defun backtrack (f x y col) 
-
+  (sleep .5)
   (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
-  (break)  
+;;  (break)  
   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
-      (if (= (aref f (getOffset x y)) 255)
-	  (format t "~%bt hier war ich schonmal")
-	  (progn
-	    (setf (aref f (getOffset x y)) 255)
-	    (if (= (aref f (getOffset x y)) col)
-		(if (or
-		     (backtrack f (+ x 1) y col)
-		     (backtrack f x (+ y 1) col)
-		     (backtrack f (- x 1) y col)
-		     (backtrack f x (- y 1) col)
-		     nil)
-		    nil))
-	    (progn	      
-	      (format t "~%~Tsaving x=~D y=~D" x y)
-	      (setf *matchStones* (+ *matchStones* 1))
-	      (setq *coordsList* (append *coordsList* '((x y)))))))))
+      (cond
+	((=(aref f (getOffset x y)) col)
+	 (progn
+	   (format t "~%bt setzt marker")
+	   (setf (aref f (getOffset x y)) 255)
+	   (setf *matchStones* (+ *matchStones* 1))
+	   (setq *coordsList* (append *coordsList* '((x y))))
+	   (if (or
+		(backtrack f (+ x 1) y col)
+		(backtrack f x (+ y 1) col)
+		(backtrack f (- x 1) y col)
+		(backtrack f x (- y 1) col)
+		nil)
+	       nil)))
+	((/=(aref f (getOffset x y)) 255)
+	 nil)	
+	(T))))
 
-
-
+  
 (defun blackenPuyo (coords)
   (format t "~%blackenPuyo: x=~D y=~D" (nth 0 coords) (nth 1 coords))
   (lispbuilder-sdl:draw-surface-at-* *blackPuyo* (* (nth 0 coords) 32) (* (nth 1 coords) 32) :surface lispbuilder-sdl:*default-display*)
@@ -366,7 +371,7 @@
 	 (if (eq *run* 1)
 	     (progn
 	       (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
-	       (drawField)
+	       (drawField *field*)
 	       (drawPuyo *first*)
 	       (drawPuyo *second*)
 	       (lispbuilder-sdl:update-display)))))
