@@ -63,8 +63,6 @@
 (defparameter *green* (lispbuilder-sdl:load-image "puyo_green.png"))
 (defparameter *yellow* (lispbuilder-sdl:load-image "puyo_yellow.png"))
 (defparameter *gameover* (lispbuilder-sdl:load-image "gameover.png"))
-(defparameter *blackPuyo* (lispbuilder-sdl:load-image "black.png"))
-(defparameter *marker* (lispbuilder-sdl:load-image "marker.png"))
 
 (defun drawPuyo (puyo)
   (let ((x (slot-value puyo 'x))
@@ -254,22 +252,16 @@
 	 (if (or
 	      (backtrack f (+ x 1) y col)
 	      (backtrack f x (+ y 1) col)
-	      (backtrack f x (- y 1) col)
 	      (backtrack f (- x 1) y col)
+	      (backtrack f x (- y 1) col)
 	      nil)
 	     nil)
 	 nil)
 	((/=(aref f (getOffset x y)) 255)
-	 T)	
-	(T))))
+	 nil)	
+	(nil))))
 
   
-(defun blackenPuyo (coords)
-  (format t "~%blackenPuyo: x=~D y=~D" (nth 0 coords) (nth 1 coords))
-  (lispbuilder-sdl:draw-surface-at-* *blackPuyo* (* (nth 0 coords) 32) (* (nth 1 coords) 32) :surface lispbuilder-sdl:*default-display*)
-  (lispbuilder-sdl:update-display)
-  (sleep 2))
-
 ;;game-loop
 
 ;;we need to clear the gaming field
