@@ -21,6 +21,7 @@
 (defvar *matchStones* 0)
 (setf  *matchStones* 0)
 
+
 (defparameter *field* (make-array (* *fieldW* *fieldH*)))
 (defparameter *solveField* (make-array (* *fieldW* *fieldH*)))
 (setf *random-state* (make-random-state t))
@@ -73,8 +74,7 @@
 	  (0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
 	  (1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
 	  (2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-	  (255 (lispbuilder-sdl:draw-surface-at-* *marker* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
+	  (3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))))))
 
 (defun clearField ()
   (loop for y from 0 to (- *fieldH* 1)  do
@@ -95,10 +95,7 @@
 		(0 (lispbuilder-sdl:draw-surface-at-* *blue* (* x 32) (* y 32)  :surface lispbuilder-sdl:*default-display*))
 		(1 (lispbuilder-sdl:draw-surface-at-* *red* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
 		(2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-		(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-		(255 (lispbuilder-sdl:draw-surface-at-* *marker* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
-
-)))))
+		(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*)))))))
 
 
 (defun moveToLeft (f s)
@@ -236,7 +233,7 @@
   (format t "~%updatePosition:end"))
 
 (defun backtrack (f x y col) 
-  (sleep .5)
+;;  (sleep .5)
   (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
 ;;  (break)  
 
