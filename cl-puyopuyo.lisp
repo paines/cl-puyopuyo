@@ -1,5 +1,8 @@
 (defpackage :cl-puyopuyo
-  (:use :common-lisp :quicklisp ))
+  (:use :common-lisp :quicklisp )
+  (:export #:cl-puyopuyo))
+
+
 
 (in-package :cl-puyopuyo)
 
@@ -32,22 +35,24 @@
 (defvar *run* nil)
 (setf *run* 1)
 
+
 (defparameter *coordsList* (make-list 0))
 
-					;a puyo consists of col 0-3 (blue, red, green and yellow and a position
+;;a puyo consists of col 0-3 (blue, red, green and yellow and a position
 (defstruct puyo
   x
   y
-  col)
+  col
+  state)
 
 ;;we need two stones, 1st and 2nd
 ;;these need to be global, so that the updatePosition thread can access the stones
 (defvar *first* nil)
 (defvar *second* nil)
-;;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*)))
-;;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*)))
-(setf *first*  (make-puyo :x 2 :y 0 :col 0))
-(setf *second* (make-puyo :x 3 :y 0 :col 0))
+;;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*) :state 'dropping))
+;;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*) :state 'dropping))
+(setf *first*  (make-puyo :x 2 :y 0 :col 0 :state 'dropping))
+(setf *second* (make-puyo :x 3 :y 0 :col 0 :state 'dropping))
 
 
 ;;sdl
@@ -175,14 +180,16 @@
   (if (and (< (+ (slot-value p 'y) 1) *fieldH*)
 	   (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
       (progn
-	(setf (slot-value p 'y) (+ (slot-value p 'y) 1)))
+	(setf (slot-value p 'y) (+ (slot-value p 'y) 1))
+	NIL)
       (progn
 	(let ((x (slot-value p 'x))
 	      (y (slot-value p 'y))
 	      (col (slot-value p 'col)))
-					;	   (format t "~%setting x=~D y=~D col=~D" x y col)
-	  (setf (aref *field* (getOffset x y)) col))
-	(setf *state* 'newPuyos))))
+	  ;;	   (format t "~%setting x=~D y=~D col=~D" x y col)
+	  (setf (aref *field* (getOffset x y)) col)
+	  (setf (slot-value p 'state) 'landed)))))
+
 
 (defun updatePosition ()
   "threaded function which will update pos each second"
@@ -190,9 +197,13 @@
   (loop do 
      ;;	(format t "~%updatePosition loop")
        (if (eq *state* 'unpause)
-	   (progn
+	   (progn	     
 	     (dropPuyo *first*) 
 	     (dropPuyo *second*)
+	     (if (and 
+		  (eq (slot-value *first* 'state) 'landed)
+		  (eq (slot-value *second* 'state) 'landed))
+		 (setf *state* 'newPuyos))
 	     (if (eq *state* 'newPuyos)
 		 (progn
 		   (copyField *field* *solveField*)
@@ -216,10 +227,14 @@
 			 (setf (slot-value *first* 'y) 0 )
 			 ;;			 (setf (slot-value *first* 'col) (random *maxCols*))
 			 (setf (slot-value *first* 'col) 0)
+			 (setf (slot-value *first* 'state) 'dropping)
+
 			 (setf (slot-value *second* 'x) 3 )
 			 (setf (slot-value *second* 'y) 0 )
 			 ;;			 (setf (slot-value *second* 'col) (random *maxCols*))
 			 (setf (slot-value *second* 'col) 0)
+			 (setf (slot-value *second* 'state) 'dropping)
+			 
 			 (setf *state* 'unpause)))))))
      ;;	(format t "~%should drop")
      ;;(sleep 1)
