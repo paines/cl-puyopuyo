@@ -2,17 +2,10 @@
   (:use :common-lisp :quicklisp )
   (:export #:cl-puyopuyo))
 
-
-
 (in-package :cl-puyopuyo)
 
 (ql:quickload "lispbuilder-sdl")
 (ql:quickload "bordeaux-threads")
-
-
-
-
-(format t "~%init...")
 
 (defvar *puyoW* 32)
 (defvar *puyoH* 32)
@@ -43,16 +36,17 @@
   x
   y
   col
-  state)
+  state
+  name)
 
 ;;we need two stones, 1st and 2nd
 ;;these need to be global, so that the updatePosition thread can access the stones
 (defvar *first* nil)
 (defvar *second* nil)
-;;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*) :state 'dropping))
-;;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*) :state 'dropping))
-(setf *first*  (make-puyo :x 2 :y 0 :col 0 :state 'dropping))
-(setf *second* (make-puyo :x 3 :y 0 :col 0 :state 'dropping))
+(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*) :state 'dropping :name 'first))
+(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*) :state 'dropping :name 'second))
+;;(setf *first*  (make-puyo :x 2 :y 0 :col 0 :state 'dropping))
+;;(setf *second* (make-puyo :x 3 :y 0 :col 0 :state 'dropping))
 
 
 ;;sdl
@@ -181,12 +175,13 @@
 	   (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
       (progn
 	(setf (slot-value p 'y) (+ (slot-value p 'y) 1))
-	NIL)
+	(format t "~%dropping name=~S x=~D y=~D col=~D" (slot-value p 'name) (slot-value p 'x) (slot-value p 'y) (slot-value p 'col)))
       (progn
 	(let ((x (slot-value p 'x))
 	      (y (slot-value p 'y))
-	      (col (slot-value p 'col)))
-	  ;;	   (format t "~%setting x=~D y=~D col=~D" x y col)
+	      (col (slot-value p 'col))
+	      (name (slot-value p 'name)))
+	  (format t "~%laying name=~S x=~D y=~D col=~D" name x y col)
 	  (setf (aref *field* (getOffset x y)) col)
 	  (setf (slot-value p 'state) 'landed)))))
 
@@ -197,9 +192,18 @@
   (loop do 
      ;;	(format t "~%updatePosition loop")
        (if (eq *state* 'unpause)
-	   (progn	     
-	     (dropPuyo *first*) 
-	     (dropPuyo *second*)
+	   (progn
+	     (if (>= (slot-value *first* 'y) (slot-value *second* 'y))
+		 (progn
+		   (if (eq (slot-value *first* 'state) 'dropping)
+		       (dropPuyo *first*))
+		   (if (eq (slot-value *second* 'state) 'dropping)
+		       (dropPuyo *second*)))
+		 (progn
+		   (if (eq (slot-value *second* 'state) 'dropping)
+		       (dropPuyo *second*))
+		   (if (eq (slot-value *first* 'state) 'dropping)
+		       (dropPuyo *first*))))
 	     (if (and 
 		  (eq (slot-value *first* 'state) 'landed)
 		  (eq (slot-value *second* 'state) 'landed))
@@ -208,7 +212,6 @@
 		 (progn
 		   (copyField *field* *solveField*)
 		   (backtrack *solveField* (slot-value *first* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
-;;		   (setArray *solveField* -1)
 		   (format t "~%matchStones=~D" *matchStones*)
 		   (setf *matchStones* 0)
 		   
@@ -225,14 +228,16 @@
 		       (progn
 			 (setf (slot-value *first* 'x) 2 )
 			 (setf (slot-value *first* 'y) 0 )
-			 ;;			 (setf (slot-value *first* 'col) (random *maxCols*))
-			 (setf (slot-value *first* 'col) 0)
+			 (setf (slot-value *first* 'col) (random *maxCols*))
+			 (setf (slot-value *first* 'name) 'first)
+;;			 (setf (slot-value *first* 'col) 0)
 			 (setf (slot-value *first* 'state) 'dropping)
 
 			 (setf (slot-value *second* 'x) 3 )
 			 (setf (slot-value *second* 'y) 0 )
-			 ;;			 (setf (slot-value *second* 'col) (random *maxCols*))
-			 (setf (slot-value *second* 'col) 0)
+			 (setf (slot-value *second* 'col) (random *maxCols*))
+			 (setf (slot-value *second* 'name) 'second)
+;;			 (setf (slot-value *second* 'col) 0)
 			 (setf (slot-value *second* 'state) 'dropping)
 			 
 			 (setf *state* 'unpause)))))))
@@ -243,21 +248,15 @@
      ;; 	   (sleep .1))
      ;; 	 (setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks)))
 
-       (sleep .1)
+       (sleep .5)
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
 
 (defun backtrack (f x y col) 
-;;  (sleep .5)
-  (format t "~%backtrack:: x=~D y=~D col=~D" x y col)
-;;  (break)  
-
-;;  (format t "~%col kommt ~D mal vor"   (countColArray f col))
   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
       (cond
 	((=(aref f (getOffset x y)) col)
 	 (progn
-	   (format t "~%bt setzt marker auf x=~D y=~D" x y)
 	   (setf (aref f (getOffset x y)) 255)
 	   (setf *matchStones* (+ *matchStones* 1))
 	   (setq *coordsList* (append *coordsList* '((x y)))))
