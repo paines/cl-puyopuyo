@@ -1,3 +1,7 @@
+;;TODO
+;;get rid of name in struct puyo
+;;get rid of format outputs at the end
+
 (defpackage :cl-puyopuyo
   (:use :common-lisp :quicklisp )
   (:export #:cl-puyopuyo))
@@ -5,7 +9,7 @@
 (in-package :cl-puyopuyo)
 
 (ql:quickload "lispbuilder-sdl")
-(ql:quickload "bordeaux-threads")
+(ql:quickload "bordeaux-threads") 
 
 (defvar *puyoW* 32)
 (defvar *puyoH* 32)
@@ -13,7 +17,7 @@
 (defvar *fieldH* 12)
 (defvar *maxCols* 4)
 
-					;(defvar *lastTicks* 0)
+;;(defvar *lastTicks* 0)
 (defvar *matchStones* 0)
 (setf  *matchStones* 0)
 
@@ -96,26 +100,40 @@
 		(2 (lispbuilder-sdl:draw-surface-at-* *green* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*))
 		(3 (lispbuilder-sdl:draw-surface-at-* *yellow* (* x 32) (* y 32) :surface lispbuilder-sdl:*default-display*)))))))
 
-
 (defun moveToLeft (f s)
   (setf *state* 'pause)
   (let ((fx (slot-value f 'x))
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
 	(sx (slot-value s 'x)))
-    (if (and (< fx sx) (> fx 0) (>= sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
-	(progn
-	  (setf (slot-value f 'x) (- fx 1))
-	  (setf (slot-value s 'x) (- sx 1))))
-    (if (and (> fx sx) (>= fx 0) (> sx 0)(= (aref *field* (getOffset (- fx 1) fy)) -1))
-	(progn
-	  (setf (slot-value f 'x) (- fx 1))
-	  (setf (slot-value s 'x) (- sx 1))))
-    (if (and (= fx sx) (= (aref *field* (getOffset (- sx 1) (- sy 1))) -1) (= (aref *field* (getOffset (- fx 1) (- fy 1))) -1))
-	(progn
-	  (setf (slot-value f 'x) (- fx 1))
-	  (setf (slot-value s 'x) (- fx 1)))))
-  (setf *state* 'unpause))
+    (format t "~%moveToLeft entry::fx=~D fy=~D sx=~D sy=~D" fx fy sx sy)
+    (cond 
+      ;;stones lay on each other
+      ((= fx sx)
+       (progn
+	 (format t "~%moveToLeft cond1")
+	 (if (and (= (aref *field* (getoffset (- fx 1) fy)) -1) (>= (- fx 1) 0)
+		  (= (aref *field* (getoffset (- sx 1) sy)) -1) (>= (- sx 1) 0))
+	     (progn
+	       (setf (slot-value f 'x) (- fx 1))
+	       (setf (slot-value s 'x) (- sx 1))))))
+      ;;s is left from f
+      ((< sx fx)
+       (progn
+	 (format t "~%moveToLeft cond2")
+	 (if (and (= (aref *field* (getoffset (- sx 1) sy)) -1) (>= (- sx 1) 0))
+	     (progn
+	       (setf (slot-value s 'x) (- sx 1))
+	       (setf (slot-value f 'x) (- fx 1))))))
+      ;;f is left from s
+      ((< fx sx)
+       (progn
+	 (format t "~%moveToLeft cond3")
+	 (if (and (= (aref *field* (getoffset (- fx 1) fy)) -1) (>= (- fx 1) 0))
+	     (progn
+	       (setf (slot-value f 'x) (- fx 1))	       
+	       (setf (slot-value s 'x) (- sx 1))))))))
+    (setf *state* 'unpause))
 
 (defun moveToRight (f s)
   (setf *state* 'pause)
@@ -123,16 +141,36 @@
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
 	(sx (slot-value s 'x)))
-    ;;check if fx<sx, field x-1 is empty and if we are in bounds
-    (if (and (< fx sx) (< fx (- *fieldW* 1)) (< sx (- *fieldW* 1))(= (aref *field* (getOffset (+ sx 1) sy)) -1))
-	(progn
-	  (setf (slot-value s 'x) (+ sx 1))
-	  (setf (slot-value f 'x) (+ fx 1))))
-    (if (and (= fx sx) (= (aref *field* (getOffset (- sx 1) (- sy 1))) -1) (= (aref *field* (getOffset (- fx 1) (- fy 1))) -1))
-	(progn
-	  (setf (slot-value f 'x) (+ fx 1))
-	  (setf (slot-value s 'x) (+ fx 1)))))
+    (format t "~%moveToRight::fx=~D fy=~D sx=~D sy=~D" fx fy sx sy)
+    (cond 
+      ;;stones lay on each other
+      ((= fx sx)
+       (progn
+	 (format t "~%moveToLeft cond1")
+	 (if (and
+	      (= (aref *field* (getoffset (+ fx 1) fy)) -1) (< (+ fx 1 ) *fieldW*)
+	      (= (aref *field* (getoffset (+ sx 1) sy)) -1) (< (+ sx 1 ) *fieldW*))
+	     (progn
+	       (setf (slot-value f 'x) (+ fx 1))
+	       (setf (slot-value s 'x) (+ sx 1))))))
+      ;;fx is left from sx
+      ((< fx sx)
+       (progn
+	 (if (and (= (aref *field* (getoffset (+ sx 1) sy)) -1) (< (+ sx 1) *fieldW*))
+	     (progn
+	       (setf (slot-value s 'x) (+ sx 1)) 
+	       (setf (slot-value f 'x) (+ fx 1))))))	       
+      ;;sx is left from sx
+      ((< sx fx)
+       (progn
+	 (if (and (= (aref *field* (getoffset (+ fx 1) fy)) -1) (< (+ fx 1) *fieldW*))
+	     (progn
+	       (setf (slot-value f 'x) (+ fx 1))
+	       (setf (slot-value s 'x) (+ sx 1))))))	       
+
+      ))
   (setf *state* 'unpause))
+
 
 (defun rotateStones (f s)
   (setf *state* 'pause)
@@ -147,22 +185,39 @@
 	 (format t "~%1st")
 	 (setf (slot-value f 'y) (- sy 1))
 	 (setf (slot-value f 'x) sx)))
-      ( (< fy sy)(= fx sx)
+      ((< fy sy)(= fx sx)
 	(progn
 	  (format t "~%2nd")
-					;	 (setf (slot-value f 'x) (+ sy 1))
-	  (setf (slot-value s 'y) (- sy 1))
-	  (setf (slot-value s 'x) (- sx 1))))
+	  (if (= fx 0)
+	      (progn
+		(print "sonderfall")
+		(setf (slot-value f 'x) (+ fx 1))
+		(setf (slot-value f 'y) (+ fy 1)))
+	      (progn
+		(print "standardfall")
+		(setf (slot-value s 'y) (- sy 1))
+		(setf (slot-value s 'x) (- sx 1))))))
       ((> fx sx) (= fy sy)
        (progn
 	 (format t "~%3rd")
 	 (setf (slot-value s 'x) (+ sx 1))
 	 (setf (slot-value s 'y) (- sy 1))))
       ((> fy sy)(= fx sx)
-       (progn
-	 (format t "~%4th")
-	 (setf (slot-value s 'y) (+ sy 1))
-	 (setf (slot-value f 'x) (- sx 1))))))
+       ;; (progn
+       ;; 	 (format t "~%4th")
+       ;; 	 (setf (slot-value s 'y) (+ sy 1))
+       ;; 	 (setf (slot-value f 'x) (- sx 1))))
+	(progn
+	  (format t "~%4th")
+	  (if (= fx 0)
+	      (progn
+		(print "sonderfall")
+		(setf (slot-value s 'x) (+ sx 1))
+		(setf (slot-value s 'y) (+ sy 1)))
+	      (progn
+		(print "standardfall")
+		(setf (slot-value s 'y) (+ sy 1))
+		(setf (slot-value f 'x) (- sx 1))))))))
   (format t "~%end rotate stone")
   (setf *state* 'unpause))
 
@@ -175,7 +230,8 @@
 	   (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
       (progn
 	(setf (slot-value p 'y) (+ (slot-value p 'y) 1))
-	(format t "~%dropping name=~S x=~D y=~D col=~D" (slot-value p 'name) (slot-value p 'x) (slot-value p 'y) (slot-value p 'col)))
+;	(format t "~%dropping name=~S x=~D y=~D col=~D" (slot-value p 'name) (slot-value p 'x) (slot-value p 'y) (slot-value p 'col)))
+	)
       (progn
 	(let ((x (slot-value p 'x))
 	      (y (slot-value p 'y))
@@ -212,8 +268,43 @@
 		 (progn
 		   (copyField *field* *solveField*)
 		   (backtrack *solveField* (slot-value *first* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
-		   (format t "~%matchStones=~D" *matchStones*)
+		   (print *coordsList*)
+		   (loop for x in *coordsList*
+		      do (print x))
+		   (if (>= *matchStones* 4)
+		       (progn
+			 (loop for x in *coordsList*
+			    do (setf (aref *field* (getOffset (car x) (cdr x))) -1))
+			 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+			 (drawField *field*)
+			 (lispbuilder-sdl:update-display)
+			 (sleep 10)))
+
+
 		   (setf *matchStones* 0)
+		   (defparameter *coordsList* (make-list 0))
+
+		   (copyField *field* *solveField*)
+		   (backtrack *solveField* (slot-value *second* 'x) (slot-value *second* 'y) (slot-value *second* 'col))
+		   (print *coordsList*)
+
+		   (loop for x in *coordsList*
+		      do (print x))
+
+		   (if (>= *matchStones* 4)
+		       (progn
+			 (loop for x in *coordsList*
+			    do (setf (aref *field* (getOffset (car x) (cdr x))) -1))
+			 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+			 (drawField *field*)
+			 (lispbuilder-sdl:update-display)
+			 (sleep 10)))
+
+
+		   (setf *matchStones* 0)
+		   (defparameter *coordsList* (make-list 0))
+
+			    
 		   
 
 		   ;;		    (backtrack *field* (slot-value *second* 'x) (slot-value *first* 'y) (slot-value *first* 'col))
@@ -239,6 +330,9 @@
 			 (setf (slot-value *second* 'name) 'second)
 ;;			 (setf (slot-value *second* 'col) 0)
 			 (setf (slot-value *second* 'state) 'dropping)
+
+;;			 (setf (aref *field* (getOffset (slot-value *first* 'x) (slot-value *first* 'y))) (slot-value *first* 'col))
+;;			 (setf (aref *field* (getOffset (slot-value *second* 'x) (slot-value *second* 'y))) (slot-value *second* 'col))
 			 
 			 (setf *state* 'unpause)))))))
      ;;	(format t "~%should drop")
@@ -248,9 +342,20 @@
      ;; 	   (sleep .1))
      ;; 	 (setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks)))
 
+       (sleep .3)
+     while(= 1 *run*))
+  (format t "~%updatePosition:end"))
+
+(defun updatePositionXXX ()
+  "threaded function which will update pos each second"
+  (format t "~%updatePosition:here we go")
+  (loop do 
+       (format t "~%updatePosition loop")
+       (updatePlayField)
        (sleep .5)
      while(= 1 *run*))
   (format t "~%updatePosition:end"))
+
 
 (defun backtrack (f x y col) 
   (if (and (>= x 0) (>= y 0) (< x *fieldW*) (< y *fieldH*))
@@ -259,7 +364,9 @@
 	 (progn
 	   (setf (aref f (getOffset x y)) 255)
 	   (setf *matchStones* (+ *matchStones* 1))
-	   (setq *coordsList* (append *coordsList* '((x y)))))
+	   (format t "~%bt pushing x=~D y=~D to list" x y)
+	   ;(setq *coordsList* (append *coordsList* '(('x 'y)))))
+	   (push (cons x y) *coordsList*))
 	 (if (or
 	      (backtrack f (+ x 1) y col)
 	      (backtrack f x (+ y 1) col)
@@ -272,11 +379,24 @@
 	 nil)	
 	(nil))))
 
-  
+(defun updatePlayField ()
+  (loop for x from 0 to  (- *fieldW* 1) do
+       (loop for y from 0 to (- *fieldH* 2) do
+	    (format t "~%updatePlayField x=~D y=~D col=~D" x y (aref *field* (getOffset x y)))
+	    (if (/= (aref *field* (getOffset x y)) -1)
+		(if (= (aref *field* (getOffset x (+ y 1))) -1)
+		    (progn
+		      (setf (aref *field* (getOffset x (+ y 1))) (aref *field* (getOffset x y)))
+		      (setf (aref *field* (getOffset x y)) -1)))
+		(return)))))
+		    
 ;;game-loop
 
 ;;we need to clear the gaming field
 (clearField)
+;(setf (aref *field* (getOffset (slot-value *first* 'x) (slot-value *first* 'y))) (slot-value *first* 'col))
+;(setf (aref *field* (getOffset (slot-value *second* 'x) (slot-value *second* 'y))) (slot-value *second* 'col))
+
 ;;(setf *lastTicks* (lispbuilder-sdl:sdl-get-ticks))
 
 
@@ -302,13 +422,14 @@
 
   (:idle ()
 	 ;;	 (format t "~%we are in idle mode")
-	 (if (eq *run* 1)
+	 (if (and (eq *run* 1) (eq *state* 'unpause))
 	     (progn
 	       (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 	       (drawField *field*)
 	       (drawPuyo *first*)
 	       (drawPuyo *second*)
 	       (lispbuilder-sdl:update-display)))))
+
 ;;we are done. bye bye
 (setf *run* 0)
 (sleep 1)
