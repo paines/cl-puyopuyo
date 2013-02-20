@@ -7,7 +7,7 @@
 
 (in-package :cl-puyopuyo)
 
-(ql:quickload "lispbuilder-sdl")
+(ql:quickload "lispbuilder-sdl-ttf")
 (ql:quickload "bordeaux-threads")  
 
 (defvar *puyoW* 32)
@@ -15,6 +15,9 @@
 (defvar *fieldW* 6)
 (defvar *fieldH* 12)
 (defvar *maxCols* 4)
+
+(defvar *points* 0)
+(setf *points* 0)
 
 (defparameter *field* (make-array (* *fieldW* *fieldH*)))
 (defparameter *solveField* (make-array (* *fieldW* *fieldH*)))
@@ -40,20 +43,23 @@
 ;;these need to be global, so that the updatePosition thread can access the stones
 (defvar *first* nil)
 (defvar *second* nil)
-;(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*) :state 'dropping))
-;(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*) :state 'dropping))
+(setf *first*  (make-puyo :x 2 :y 0 :col (random *maxCols*) :state 'dropping))
+(setf *second* (make-puyo :x 3 :y 0 :col (random *maxCols*) :state 'dropping))
 
-(setf *first*  (make-puyo :x 3 :y 0 :col 1 :state 'dropping))
-(setf *second* (make-puyo :x 3 :y 1 :col 2 :state 'dropping))
+;(setf *first*  (make-puyo :x 3 :y 0 :col 1 :state 'dropping))
+;(setf *second* (make-puyo :x 3 :y 1 :col 2 :state 'dropping))
 
 (push *first* *puyos*)
 (push *second* *puyos*)
 
 ;;sdl
 (lispbuilder-sdl:init-video)
+;;(SETF (SDL:FRAME-RATE) 60)
+(lispbuilder-sdl:initialise-default-font)
 
 ;;the puyo sprites are 32x32 pixels, so the playfield is 6*32 wide  and 12*32 heigh
-(lispbuilder-sdl:window  (* *puyoW* *fieldW*) (* *puyoH* *fieldH*) )
+;;we need double with, for displaying points and next puyos right from the playfield
+(lispbuilder-sdl:window  (* (* *puyoW* *fieldW*) 2) (* *puyoH* *fieldH*) )
 (lispbuilder-sdl:init-subsystems lispbuilder-sdl:sdl-init-timer)
 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
 
@@ -78,8 +84,6 @@
        (format t "~%")))
        
 (defun countElements (f elem)
-  (print "countElements:")
-  (print f)
   (let ((n 0))
     (dotimes (counter (length f))
       (if (= (aref f counter) elem)
@@ -174,87 +178,73 @@
 
 
 (defun rotateStones (f s)
-;  (setf *state* 'pause)
+  (format t "~%rotateStones")
+  (setf *state* 'pause)
   (let ((fx (slot-value f 'x))
 	(fy (slot-value f 'y))
 	(sy (slot-value s 'y))
 	(sx (slot-value s 'x)))
-    (format t "~%fx=~D fy=~D sx=~D sy=~D" fx fy sx sy)
     (cond
       ((< fx sx)
        (progn
-	 (format t "~%1st")
 	 (setf (slot-value f 'y) (- sy 1))
 	 (setf (slot-value f 'x) sx)))
       ((< fy sy)(= fx sx)
 	(progn
-	  (format t "~%2nd")
 	  (if (= fx 0)
 	      (progn
-		(print "sonderfall")
 		(setf (slot-value f 'x) (+ fx 1))
 		(setf (slot-value f 'y) (+ fy 1)))
 	      (progn
-		(print "standardfall")
 		(setf (slot-value s 'y) (- sy 1))
 		(setf (slot-value s 'x) (- sx 1))))))
       ((> fx sx) (= fy sy)
        (progn
-	 (format t "~%3rd")
 	 (setf (slot-value s 'x) (+ sx 1))
 	 (setf (slot-value s 'y) (- sy 1))))
       ((> fy sy)(= fx sx)
 	(progn
-	  (format t "~%4th")
 	  (if (= fx 0)
 	      (progn
-		(print "sonderfall")
 		(setf (slot-value s 'x) (+ sx 1))
 		(setf (slot-value s 'y) (+ sy 1)))
 	      (progn
-		(print "standardfall")
 		(setf (slot-value s 'y) (+ sy 1))
 		(setf (slot-value f 'x) (- sx 1))))))))
-  (format t "~%end rotate stone")
   (setf *state* 'unpause))
 
 (defun getOffset (x y)
   (+ (* y *fieldW*) x))
 
-;(defun dropPuyos (puyos)
 (defun dropPuyos ()
-  (print "Function to perform dropping of all puyos")
-  (setf *state* 'computing)
-  (setq *puyos* (sort *puyos* #'> :key #'(lambda (x) (slot-value x 'y))))
-  
-  (if (eq (length *puyos*) 0)
-      (progn
-	(setf *state* 'newPuyos)
-	nil))
+;  (setf *state* 'computing)
+  (print "start dropPuyos")
+  ;;due to the fact that we use this function to drop all puyos
+  ;;even the two ones we are playing with, we need to sort the list of puyos
+  ;;because 1st could lay on second and wouldn't be dropped, cause it
+  ;;thinks it cannot drop further
 
-;;  (printField)
+  (print *puyos*)
+  (setq *puyos* (sort *puyos* #'> :key #'(lambda (x) (slot-value x 'y))))
+  (print *puyos*)
 
   (loop for p in *puyos* do
+       (print "dropPuyo loop")
+       (puyosToField *puyos* *field*)
        (if (eq (slot-value p 'state) 'dropping)
 	   (if (and (< (+ (slot-value p 'y) 1) *fieldH*)
 		    (= (aref *field* (getOffset (slot-value p 'x) (+ (slot-value p 'y) 1))) -1))
 	       (progn
-		 (print "dropping")
-		 (setf (slot-value p 'y) (+ (slot-value p 'y) 1))
-		 (puyosToField *puyos* *field*))
-	       
+		 (print "droppping")
+		 (setf (slot-value p 'y) (+ (slot-value p 'y) 1)))
 	       (progn
+		 (print "not droppping")
+		 (setf (slot-value p 'state) 'landed)))))
 
-		 (let ((x (slot-value p 'x))
-		       (y (slot-value p 'y))
-		       (col (slot-value p 'col)))
-		   (format t "~%not dropping x=~D y=~D col=~D" x y col)
-		   (setf (aref *field* (getOffset x y)) col)
-		   (setf (slot-value p 'state) 'landed)
-		   (puyosToField *puyos* *field*)
-		   ;(push p puyos)
-		   nil)))))
-  (setf *state* 'unpause))
+  (print "dropPuyos end")
+  (puyosToField *puyos* *field*))
+
+;  (set *state* 'unpause))
 
 
 
@@ -273,36 +263,23 @@
 	  nil)))
 
 (defun sweeping ()
-  (print "sweeping!")
+  (print "sweeping..")
+  (dotimes (i (length *solveField*))
+    (if (= (aref *solveField* i) 255)
+	(progn
+	  (setf *points* (+ *points* 2))
+	  (setf (aref *field* i) -1))))
   
-  (loop for y from 0 to (- *fieldH* 1)  do
-       (loop for x from 0 to (- *fieldW* 1) do	    
-	    (if (= (aref *solveField* (getOffset x y)) 255)
-		(setf (aref *field* (getOffset x y)) -1))))
-
   (loop for p in *puyos* do
        (pop *puyos*))
 
   (fieldToPuyos)
   
-  (print *field*)
-
-  (print "length of puyos:")
-  (print (length *puyos*))
-
   (loop for p in *puyos* do
-       (setf (slot-value p 'state) 'dropping))
-  
-;  (loop until (dropPuyos *puyos*))
-  (loop until (dropPuyos))
-  
- 
-  (print "in sweeping:")
-  (print *puyos*)
-      
-;;  (printField)
-  
-  (setf *state* 'reset))
+       (setf (slot-value p 'state) 'dropping)))
+
+;  (loop until (dropPuyos)))
+
 
 (defun updatePosition ()
   "threaded function which will update pos each second"
@@ -310,47 +287,38 @@
        (print "update position")
        (print "state:")
        (print *state*)
-       (cond
 
-	 ((eq *state* 'reset)
-	  (print "resetting backtracking")
-	  (setf *state* 'backtrack))
+       (cond
+	 
+	 ((eq *state* 'computing)
+	  (sleep .1))
 
 	 ((eq *state* 'unpause)
 	   (progn
-;	     (dropPuyos *puyos*)
 	     (dropPuyos)
-	     (if (and
-		  (eq (slot-value *first* 'state) 'landed)
-		  (eq (slot-value *second* 'state) 'landed))
-		 (progn
-		   ;;cl(os)/gc will destroy objects on its own
-		   ;;(delete *first*)
-		   ;;(delete *second*)
+	     (let ((count 0))
+	       (loop for p in *puyos* do
+		    (if (eq (slot-value p 'state) 'landed)
+			(incf count)))
+	       (if (eq count (length *puyos*))
 		   (setf *state* 'backtrack)))))
-
-	 ((eq *state* 'computing)
-	  (sleep 0.1)
-	  )
        
 	 ((eq *state* 'backtrack)
 	  (loop for y from 0 to (- *fieldH* 1)  do
-	       (loop for x from 0 to (- *fieldW* 1) do	    
-		    (if (/= (aref *field* (getOffset x y)) 255)
-			(progn
-			  (copyField *field* *solveField*)
-			  (backtrack *solveField* x y (aref *field* (getOffset x y)))
-			  (if (>= (countElements *solveField* 255) 4)
-			      (progn
-				(sweeping)))))))
-;				(return))
+	       (loop for x from 0 to (- *fieldW* 1) do	
+		    (let ((col (aref *field* (getOffset x y))))
+		      (if (member col '(0 1 2 3))
+			  (progn
+			    (copyField *field* *solveField*)
+			    (backtrack *solveField* x y col)
+			    (if (>= (countElements *solveField* 255) 4)
+				(progn
+				(sweeping)			       
+				(return))))))))
 	  (setf *state* 'newPuyos))
 
-	 
 	 ((eq *state* 'newPuyos) 
-	  (print "newPuyos:")
-	  (print *puyos*)
-	  (if (and (/= (aref *field* (getOffset 2 0)) -1) (/= (aref *field* (getOffset 3 0)) -1))
+	  (if (or (/= (aref *field* (getOffset 2 0)) -1) (/= (aref *field* (getOffset 3 0)) -1))
 	      (progn		       
 		(setf *run* 0)
 		(print "GAME OVER"))
@@ -412,8 +380,8 @@
 
 ;test shit
 
-(fileToField *field*)
-(fieldToPuyos)
+;;(fileToField *field*)
+;;(fieldToPuyos)
 
 ;;(printField)
 
@@ -429,12 +397,10 @@
 			   ((eq *state* 'unpause)
 			    (setf *state* 'pause))))
 		   (when (lispbuilder-sdl:key= key :sdl-key-up)
-		     (rotateStones *first* *second*)
-		     (puyosToField *puyos* *field*))
+		     (print "roatateStones")
+		     (rotateStones *first* *second*))
+;		     (puyosToField *puyos* *field*))
 		   (when (lispbuilder-sdl:key= key :sdl-key-down)
-		   ;  (dropPuyo *first*)
-		   ;  (dropPuyo *second*))
-;		   (dropPuyos *puyos*))
 		   (dropPuyos))
 		   (when (lispbuilder-sdl:key= key :sdl-key-left)
 		     (movetoLeft *first* *second*))
@@ -442,20 +408,17 @@
 		     (moveToRight *first* *second*)))
 
   (:idle ()
-	 (if (eq *run* 1)
-	     (progn
-	       (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
-	       (if (eq *state* 'pause)
-		   (lispbuilder-sdl:draw-surface-at-* *paused* 0 0 :surface lispbuilder-sdl:*default-display*)
-		   (progn
-;		     (puyosToField *puyos* *field*)
-		     (drawField *field*)))
-;		     (drawPuyo *first*)
-;		     (drawPuyo *second*)))
-	       (lispbuilder-sdl:update-display))
-	     (progn
-	       (lispbuilder-sdl:draw-surface-at-* *gameover* 0 0 :surface lispbuilder-sdl:*default-display*)
-	       (lispbuilder-sdl:update-display)))))
+	 (lispbuilder-sdl:clear-display lispbuilder-sdl:*white*)
+	 (sdl:draw-string-solid-* (format nil "Puyopuyo") (+ (* *fieldW* *puyoW*) 50) 10 :color (sdl:color :r 0 :g 0 :b 0))
+	 (cond 
+	   ((eq *state* 'pause)
+	    (lispbuilder-sdl:draw-surface-at-* *paused* 0 0 :surface lispbuilder-sdl:*default-display*))
+	   ((eq *state* 'unpause)
+	    (drawField *field*)
+	    (sdl:draw-string-solid-* (format nil "~D" *points*) (+ (* *fieldW* *puyoW*) 59) (/ (* *fieldH* *puyoH*) 2) :color (sdl:color :r 0 :g 0 :b 0)))
+	   ((eq *run* '0)
+	    (lispbuilder-sdl:draw-surface-at-* *gameover* 0 0 :surface lispbuilder-sdl:*default-display*)))
+	 (lispbuilder-sdl:update-display)))
 
 ;;we are done. bye bye
 (setf *run* 0)
