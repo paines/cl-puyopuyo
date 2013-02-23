@@ -1,6 +1,3 @@
-To start via slime:
+This is a Puyopuyo clone, a Tetris variant, written in Common Lisp, with SDL for graphics.
 
-(load "package.lisp")
-
-(asdf:load-system "cl-puyopuyo")
-
+This is my first ever Lisp project.
